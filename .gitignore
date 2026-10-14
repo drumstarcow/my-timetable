@@ -1,0 +1,24 @@
+# HarmonyOS / DevEco Studio
+/node_modules
+/oh_modules
+/local.properties
+/.idea
+**/build
+/.hvigor
+.cxx
+/.clangd
+/.clang-format
+/.clang-tidy
+**/.test
+/.appanalyzer
+/.clang
+/.clangd-cache
+
+# Trae / 本地工具
+/.trae
+*.log
+
+# 签名材料（切勿提交）
+*.p12
+*.cer
+*.p7b
