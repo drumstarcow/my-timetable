@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "module description"
+      "value": "杉课主模块"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "课程表应用"
+      "value": "杉课应用"
     },
     {
       "name": "EntryAbility_label",
-      "value": "课程表"
+      "value": "杉课"
     }
   ]
 }

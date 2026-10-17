@@ -237,6 +237,31 @@ export struct SettingsPage {
             .backgroundColor($r('app.color.card_bg'))
             .alignItems(HorizontalAlign.Start)
 
+            // 隐私政策
+            Row() {
+              Column({ space: 4 }) {
+                Text('隐私政策')
+                  .fontSize(15)
+                  .fontColor($r('app.color.text_primary'))
+                Text('本应用不收集、不上传任何个人信息')
+                  .fontSize(12)
+                  .fontColor($r('app.color.text_secondary'))
+              }
+              .alignItems(HorizontalAlign.Start)
+              .layoutWeight(1)
+
+              Text('查看')
+                .fontSize(13)
+                .fontColor($r('app.color.accent'))
+            }
+            .width('100%')
+            .padding(16)
+            .borderRadius(12)
+            .backgroundColor($r('app.color.card_bg'))
+            .onClick(() => {
+              this.navPath.pushPathByName('privacyPolicy', undefined);
+            })
+
             Text('学期开始日期决定"今天处于第几周"；节次时间表用于网格左侧的时间显示。')
               .fontSize(12)
               .fontColor($r('app.color.text_secondary'))

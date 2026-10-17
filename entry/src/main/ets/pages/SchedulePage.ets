@@ -1,4 +1,5 @@
 import { BusinessError } from '@kit.BasicServicesKit';
+import { common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { picker } from '@kit.CoreFileKit';
 import { Course, SectionTime, ImportPayload } from '../common/types';
@@ -17,6 +18,7 @@ import { WeekGrid } from '../components/WeekGrid';
 import { CourseEditDialog } from '../components/CourseEditDialog';
 import { CourseDetailDialog } from '../components/CourseDetailDialog';
 import { ImportSourceDialog } from '../components/ImportSourceDialog';
+import { PolicySection, getPrivacySections } from '../common/PrivacyText';
 import { Logger } from '../common/Logger';
 
 const TAG = 'SchedulePage';
@@ -63,6 +65,8 @@ export struct SchedulePage {
   };
   @State isNewCourse: boolean = true;
   @State busy: boolean = false;
+  @State showPrivacy: boolean = false;
+  private privacySections: PolicySection[] = getPrivacySections();
   @StorageLink('schedule_data_dirty') @Watch('onDataDirty') dataDirty: boolean = false;
 
   private today: number = getDayOfToday();
@@ -71,6 +75,29 @@ export struct SchedulePage {
     Logger.info(TAG, 'aboutToAppear begin');
     clearDataDirty();
     this.reload();
+    SettingsService.getInstance().isPrivacyAgreed().then((agreed: boolean) => {
+      this.showPrivacy = !agreed;
+      Logger.info(TAG, 'privacy agreed=' + agreed.toString());
+    });
+  }
+
+  /** 同意隐私政策：记录标记并进入应用 */
+  private agreePrivacy(): void {
+    SettingsService.getInstance().setPrivacyAgreed().then(() => {
+      this.showPrivacy = false;
+      Logger.info(TAG, 'privacy agreed saved');
+    }).catch((e: BusinessError) => {
+      Logger.error(TAG, 'agreePrivacy failed: ' + e.message);
+      this.showPrivacy = false;
+    });
+  }
+
+  /** 不同意隐私政策：退出应用 */
+  private declinePrivacy(): void {
+    const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    ctx.terminateSelf().catch((e: BusinessError) => {
+      Logger.error(TAG, 'terminateSelf failed: ' + e.message);
+    });
   }
 
   /** 数据变更标记（导入预览页保存后）触发刷新 */
@@ -83,6 +110,23 @@ export struct SchedulePage {
 
   private toast(msg: string): void {
     this.getUIContext().getPromptAction().showToast({ message: msg, duration: 2000 });
+  }
+
+  /** 保存课程自由备注（详情弹窗"保存备注"，仅更新 note 列） */
+  private async saveNote(note: string): Promise<void> {
+    if (this.detailCourse.id === undefined) {
+      return;
+    }
+    try {
+      await DatabaseService.getInstance().updateCourseNote(this.detailCourse.id, note);
+      this.detailCourse.note = note;
+      this.toast('备注已保存');
+      this.reload();
+    } catch (e) {
+      const err = e as Error;
+      Logger.error(TAG, 'saveNote failed: ' + err.message);
+      this.toast('保存失败');
+    }
   }
 
   private async reload(): Promise<void> {
@@ -292,6 +336,22 @@ export struct SchedulePage {
         })
         .margin({ top: 6, bottom: 6 })
 
+        if (this.courses.length === 0) {
+          Column() {
+            Text('课表还是空的')
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.text_primary'))
+            Text('点击右上角「导入」，用图片、CSV 或 Excel 一键导入你的课程表')
+              .fontSize(14)
+              .fontColor($r('app.color.text_secondary'))
+              .margin({ top: 10 })
+          }
+          .width('100%')
+          .padding({ top: 40, bottom: 16 })
+          .alignItems(HorizontalAlign.Center)
+        }
+
         WeekGrid({
           courses: this.courses,
           week: this.week,
@@ -349,6 +409,9 @@ export struct SchedulePage {
             },
             onClose: () => {
               this.showDetail = false;
+            },
+            onSaveNote: (note: string) => {
+              this.saveNote(note);
             }
           })
         }
@@ -395,6 +458,84 @@ export struct SchedulePage {
         .width('100%')
         .height('100%')
         .backgroundColor('#80000000')
+        .justifyContent(FlexAlign.Center)
+      }
+
+      // 首次启动隐私政策（必须选择同意或退出）
+      if (this.showPrivacy) {
+        Column() {
+          Column({ space: 10 }) {
+            Text('隐私政策')
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.text_primary'))
+            Scroll() {
+              Column({ space: 10 }) {
+                Text('欢迎使用"杉课"。在使用前请阅读并同意以下协议：')
+                  .fontSize(13)
+                  .lineHeight(20)
+                  .fontColor($r('app.color.text_secondary'))
+                Text('核心承诺：本应用是一款纯本地工具应用。我们不收集、不存储、不上传您的任何个人信息，应用不需要联网即可使用全部功能，也不申请任何系统权限。')
+                  .fontSize(13)
+                  .lineHeight(20)
+                  .fontColor($r('app.color.text_primary'))
+                ForEach(this.privacySections, (s: PolicySection) => {
+                  Column({ space: 4 }) {
+                    Text(s.title)
+                      .fontSize(14)
+                      .fontWeight(FontWeight.Bold)
+                      .fontColor($r('app.color.text_primary'))
+                    ForEach(s.lines, (line: string) => {
+                      Text(line)
+                        .fontSize(12)
+                        .lineHeight(19)
+                        .fontColor($r('app.color.text_secondary'))
+                    }, (line: string) => {
+                      return line;
+                    })
+                  }
+                  .width('100%')
+                  .alignItems(HorizontalAlign.Start)
+                }, (s: PolicySection) => {
+                  return s.title;
+                })
+              }
+              .width('100%')
+            }
+            .layoutWeight(1)
+            .scrollBar(BarState.Auto)
+            .align(Alignment.Top)
+            Row({ space: 12 }) {
+              Text('不同意并退出')
+                .fontSize(14)
+                .fontColor($r('app.color.text_secondary'))
+                .padding({ left: 18, right: 18, top: 9, bottom: 9 })
+                .borderRadius(8)
+                .backgroundColor($r('app.color.divider'))
+                .onClick(() => {
+                  this.declinePrivacy();
+                })
+              Text('同意并继续')
+                .fontSize(14)
+                .fontColor(Color.White)
+                .padding({ left: 18, right: 18, top: 9, bottom: 9 })
+                .borderRadius(8)
+                .backgroundColor($r('app.color.accent'))
+                .onClick(() => {
+                  this.agreePrivacy();
+                })
+            }
+          }
+          .width('86%')
+          .height('72%')
+          .padding(18)
+          .borderRadius(16)
+          .backgroundColor($r('app.color.card_bg'))
+          .alignItems(HorizontalAlign.Center)
+        }
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#A0000000')
         .justifyContent(FlexAlign.Center)
       }
     }

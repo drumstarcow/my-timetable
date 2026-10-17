@@ -119,7 +119,10 @@ export struct WeekGrid {
               }, (c: Course) => {
                 const idPart = c.id !== undefined ? c.id.toString() : 'n';
                 return 'c' + idPart + '_' + c.dayOfWeek.toString() + '_' +
-                  c.startSection.toString() + '_' + c.name;
+                  c.startSection.toString() + '_' + c.endSection.toString() + '_' +
+                  c.name + '_' + c.teacher + '_' + c.room + '_' +
+                  c.weekType.toString() + '_' + c.startWeek.toString() + '_' +
+                  c.endWeek.toString() + '_' + c.priority.toString();
               })
             }
             .width('100%')

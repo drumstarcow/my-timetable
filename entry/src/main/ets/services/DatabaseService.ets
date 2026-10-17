@@ -2,7 +2,6 @@ import { relationalStore } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { Course } from '../common/types';
-import { sampleCourses } from '../common/SampleData';
 import { markDataDirty } from './ImportSession';
 import { Logger } from '../common/Logger';
 
@@ -21,7 +20,8 @@ const SQL_CREATE_COURSE: string = `CREATE TABLE IF NOT EXISTS course (
   end_week INTEGER NOT NULL DEFAULT 25,
   color_index INTEGER NOT NULL DEFAULT 0,
   priority INTEGER NOT NULL DEFAULT 0,
-  content TEXT NOT NULL DEFAULT ''
+  content TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL DEFAULT ''
 )`;
 
 const SQL_CREATE_SETTING: string = `CREATE TABLE IF NOT EXISTS app_setting (
@@ -55,10 +55,7 @@ export class DatabaseService {
       return;
     }
     this.readyPromise = this.doInit(context);
-    // 数据库就绪后再检查是否需要插入示例数据（此时 ensureReady 才可用，避免自等待死锁）
-    this.readyPromise.then(() => {
-      return this.seedIfEmpty();
-    }).catch((e: BusinessError) => {
+    this.readyPromise.catch((e: BusinessError) => {
       Logger.error(TAG, 'init failed: ' + e.message);
     });
   }
@@ -83,22 +80,13 @@ export class DatabaseService {
     } catch (e) {
       Logger.info(TAG, 'content column already exists, skip migration');
     }
-    Logger.info(TAG, 'database ready');
-  }
-
-  /** 课表为空时插入示例数据（仅首次启动生效） */
-  private async seedIfEmpty(): Promise<void> {
+    // 旧版本数据库迁移：补 note（用户自由备注）列
     try {
-      const existing = await this.queryAllCourses();
-      if (existing.length === 0) {
-        await this.insertCourses(sampleCourses());
-        Logger.info(TAG, 'sample courses inserted');
-        // 通知主页自动刷新（页面首查可能早于插入完成）
-        markDataDirty();
-      }
+      await this.store.executeSql("ALTER TABLE course ADD COLUMN note TEXT NOT NULL DEFAULT ''");
     } catch (e) {
-      Logger.warn(TAG, 'insert sample courses failed');
+      Logger.info(TAG, 'note column already exists, skip migration');
     }
+    Logger.info(TAG, 'database ready');
   }
 
   private async ensureReady(): Promise<relationalStore.RdbStore> {
@@ -130,7 +118,8 @@ export class DatabaseService {
       'end_week': c.endWeek,
       'color_index': c.colorIndex,
       'priority': c.priority,
-      'content': c.content
+      'content': c.content,
+      'note': c.note !== undefined ? c.note : ''
     };
     return bucket;
   }
@@ -156,7 +145,8 @@ export class DatabaseService {
           endWeek: rs.getLong(rs.getColumnIndex('end_week')),
           colorIndex: rs.getLong(rs.getColumnIndex('color_index')),
           priority: rs.getLong(rs.getColumnIndex('priority')),
-          content: rs.getString(rs.getColumnIndex('content'))
+          content: rs.getString(rs.getColumnIndex('content')),
+          note: rs.getString(rs.getColumnIndex('note'))
         };
         courses.push(c);
       }
@@ -200,5 +190,14 @@ export class DatabaseService {
     const predicates = new relationalStore.RdbPredicates('course');
     predicates.equalTo('id', id);
     await store.delete(predicates);
+  }
+
+  /** 仅更新课程备注列（详情弹窗自由备注用，不覆盖其他字段） */
+  async updateCourseNote(id: number, note: string): Promise<void> {
+    const store = await this.ensureReady();
+    const predicates = new relationalStore.RdbPredicates('course');
+    predicates.equalTo('id', id);
+    const bucket: relationalStore.ValuesBucket = { 'note': note };
+    await store.update(bucket, predicates);
   }
 }

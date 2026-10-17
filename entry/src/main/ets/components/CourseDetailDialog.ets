@@ -22,6 +22,15 @@ export struct CourseDetailDialog {
   };
   onClose: () => void = () => {
   };
+  /** 备注保存回调（父级负责落库并提示） */
+  onSaveNote: (note: string) => void = (note: string) => {
+  };
+
+  @State noteText: string = '';
+
+  aboutToAppear(): void {
+    this.noteText = this.course.note !== undefined ? this.course.note : '';
+  }
 
   private weekLabel(): string {
     if (this.course.weekType === 0 && this.course.startWeek <= 1 && this.course.endWeek >= MAX_WEEK) {
@@ -103,6 +112,38 @@ export struct CourseDetailDialog {
       .padding(10)
       .borderRadius(8)
       .backgroundColor($r('app.color.page_bg'))
+      .alignItems(HorizontalAlign.Start)
+
+      // 我的备注（可自由编辑并保存）
+      Column({ space: 6 }) {
+        Row() {
+          Text('我的备注')
+            .fontSize(13)
+            .fontColor($r('app.color.text_secondary'))
+          Blank()
+          Text('保存备注')
+            .fontSize(13)
+            .fontColor($r('app.color.accent'))
+            .onClick(() => {
+              this.onSaveNote(this.noteText);
+            })
+        }
+        .width('100%')
+
+        TextArea({ text: this.noteText, placeholder: '随手记：作业、考试、调课提醒…' })
+          .fontSize(14)
+          .fontColor($r('app.color.text_primary'))
+          .placeholderFont({ size: 13 })
+          .placeholderColor($r('app.color.text_secondary'))
+          .backgroundColor($r('app.color.page_bg'))
+          .borderRadius(8)
+          .height(84)
+          .width('100%')
+          .onChange((value: string) => {
+            this.noteText = value;
+          })
+      }
+      .width('100%')
       .alignItems(HorizontalAlign.Start)
 
       Row({ space: 10 }) {

@@ -28,6 +28,8 @@ export interface Course {
   priority: number;
   /** 课程内容描述（讲述内容等，选填） */
   content: string;
+  /** 用户自由备注（作业、考试、调课等随手记，选填） */
+  note?: string;
 }
 
 /** 导入解析过程中产生的课程（附带原始单元格文本，便于核对修正） */

@@ -16,6 +16,7 @@ export interface AppSettings {
 const TAG = 'SettingsService';
 const KEY_START_DATE = 'semester_start_date';
 const KEY_SECTION_TIMES = 'section_times';
+const KEY_PRIVACY_AGREED = 'privacy_agreed_v1';
 
 /** 设置单例：学期开始日期与节次时间表，持久化于 app_setting 表 */
 export class SettingsService {
@@ -83,6 +84,32 @@ export class SettingsService {
       sectionTimes: times
     };
     await this.saveSettings(updated);
+  }
+
+  /** 是否已同意隐私政策（首次启动弹窗用；查询异常时放行，避免卡死用户） */
+  async isPrivacyAgreed(): Promise<boolean> {
+    try {
+      const store = await DatabaseService.getInstance().getStore();
+      const predicates = new relationalStore.RdbPredicates('app_setting');
+      predicates.equalTo('key', KEY_PRIVACY_AGREED);
+      const rs = await store.query(predicates);
+      let agreed = false;
+      if (rs.goToNextRow()) {
+        agreed = rs.getString(rs.getColumnIndex('value')) === '1';
+      }
+      rs.close();
+      return agreed;
+    } catch (e) {
+      const err = e as BusinessError;
+      Logger.error(TAG, 'isPrivacyAgreed failed: ' + err.message);
+      return true;
+    }
+  }
+
+  /** 记录用户已同意隐私政策 */
+  async setPrivacyAgreed(): Promise<void> {
+    const store = await DatabaseService.getInstance().getStore();
+    await this.upsert(store, KEY_PRIVACY_AGREED, '1');
   }
 
   private async upsert(store: relationalStore.RdbStore, key: string, value: string): Promise<void> {

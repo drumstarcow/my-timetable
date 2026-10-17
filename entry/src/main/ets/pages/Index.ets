@@ -1,6 +1,7 @@
 import { SchedulePage } from './SchedulePage';
 import { ImportPreviewPage } from './ImportPreviewPage';
 import { SettingsPage } from './SettingsPage';
+import { PrivacyPolicyPage } from './PrivacyPolicyPage';
 
 @Entry
 @Component
@@ -13,6 +14,8 @@ struct Index {
       ImportPreviewPage()
     } else if (name === 'settings') {
       SettingsPage()
+    } else if (name === 'privacyPolicy') {
+      PrivacyPolicyPage()
     }
   }
 
